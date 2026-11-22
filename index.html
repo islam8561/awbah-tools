@@ -66,6 +66,8 @@ pre{white-space:pre-wrap;direction:ltr;text-align:left;font:13px/1.5 ui-monospac
 <div id="dBox" hidden style="display:grid;gap:10px">
 <div style="font-weight:600;font-size:14px">قوالب جاهزة <small>بتملا كل الحقول، وراجع التواريخ مع إعلان دار الإفتاء</small></div>
 <div class="row"><button class="btn" id="pBid" type="button">الأيام البيض الجاية</button><button class="btn ghost" id="pMT" type="button">الاثنين والخميس</button></div>
+<label>مكان الصورة
+<select id="imgpos"><option value="bottom">مشهد تحت النص (زي التمر والمية)</option><option value="side">جنب العنوان</option></select></label>
 <label>صفوف الجدول <small>كل سطر صف، وافصل الخانات بعلامة |</small><textarea id="rows" style="min-height:110px"></textarea></label>
 </div>
 <label>العنوان <input type="text" id="title"></label>
@@ -100,8 +102,8 @@ const $=id=>document.getElementById(id);
 const cv=$('cv'),ctx=cv.getContext('2d');
 const W=1080;
 let style='A',img=null;
-const defaults={title:'لا تنسَ صيام يوم الخميس',intro:'عن أبي هريرة رضي الله عنه أن رسول الله ﷺ قال:',main:'«تُعرَضُ الأعمالُ يومَ الاثنينِ والخميسِ، فأُحِبُّ أن يُعرَضَ عملي وأنا صائمٌ»',src:'رواه الترمذي',hl:'الاثنين, والخميس',rows:''};
-const fields=['title','intro','main','src','hl','rows'];
+const defaults={title:'لا تنسَ صيام يوم الخميس',intro:'عن أبي هريرة رضي الله عنه أن رسول الله ﷺ قال:',main:'«تُعرَضُ الأعمالُ يومَ الاثنينِ والخميسِ، فأُحِبُّ أن يُعرَضَ عملي وأنا صائمٌ»',src:'رواه الترمذي',hl:'الاثنين, والخميس',rows:'',imgpos:'bottom'};
+const fields=['title','intro','main','src','hl','rows','imgpos'];
 let saved={};try{saved=JSON.parse(localStorage.getItem('awbah-tpl')||'{}')}catch(e){}
 fields.forEach(f=>$(f).value=saved[f]??defaults[f]);
 if(saved.style)style=saved.style;if(saved.size)$('size').value=saved.size;
@@ -114,7 +116,7 @@ const strip=s=>s.replace(/[ً-ْٰـ«»"“”'،؛.,:!؟?()]/g,'');
 const F=(w,s,f)=>`${w} ${s}px ${f}`;
 function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r)}
 function cover(im,x,y,w,h){const s=Math.max(w/im.width,h/im.height),iw=im.width*s,ih=im.height*s;ctx.drawImage(im,x+(w-iw)/2,y+(h-ih)/2,iw,ih)}
-function wrap(text,font,maxW){ctx.font=font;const out=[];for(const para of text.split('\n')){let line='';for(const w of para.split(/\s+/).filter(Boolean)){const t=line?line+' '+w:w;if(ctx.measureText(t).width>maxW&&line){out.push(line);line=w}else line=t}if(line)out.push(line)}return out}
+function wrap(text,font,maxW){ctx.font=font;const out=[];for(const para of text.split('\n')){let line='';const tk=[];for(const w of para.split(/\s+/).filter(Boolean)){if(/^(هـ|ه|م)$/.test(w)&&tk.length)tk[tk.length-1]+='\u00a0'+w;else tk.push(w)}for(const w of tk){const t=line?line+' '+w:w;if(ctx.measureText(t).width>maxW&&line){out.push(line);line=w}else line=t}if(line)out.push(line)}return out}
 function fit(text,weight,fam,maxW,maxH,max,min,lh){let s=max,l;for(;s>=min;s-=2){l=wrap(text,F(weight,s,fam),maxW);if(l.length*s*lh<=maxH)break}return{size:Math.max(s,min),lines:l}}
 function rich(lines,font,size,cx,y,lh,color,hlColor,mode){
  const hl=new Set($('hl').value.split(/[,،]/).map(s=>strip(s.trim())).filter(Boolean));
@@ -163,27 +165,41 @@ function drawC(H){
  if(v('src'))center('— '+v('src'),F(700,30,'Amiri'),'rgba(255,255,255,.8)',W/2,y+54);
  sign(W/2,H-90,'#fff','rgba(255,255,255,.7)')}
 function contain(im,x,y,w,h){const s=Math.min(w/im.width,h/im.height),iw=im.width*s,ih=im.height*s;ctx.drawImage(im,x+(w-iw)/2,y+(h-ih)/2,iw,ih)}
+function imgBg(){if(img._bg)return img._bg;const c=document.createElement('canvas');c.width=c.height=24;const x=c.getContext('2d');x.drawImage(img,0,0,24,24);const d=x.getImageData(0,0,24,24).data;let r=0,g=0,b=0,n=0;
+ for(const[px,py]of[[0,0],[23,0],[0,1],[23,1],[1,0],[22,0]]){const i=(py*24+px)*4;r+=d[i];g+=d[i+1];b+=d[i+2];n++}r/=n;g/=n;b/=n;
+ return img._bg={css:`rgb(${r|0},${g|0},${b|0})`,l:(.299*r+.587*g+.114*b)/255,a:d[3]}}
+function feather(w,h,mode){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');
+ const s=mode==='side'?Math.min(w/img.width,h/img.height):Math.max(w/img.width,h/img.height),iw=img.width*s,ih=img.height*s;
+ x.drawImage(img,(w-iw)/2,mode==='side'?(h-ih)/2:h-ih,iw,ih);x.globalCompositeOperation='destination-out';
+ const fade=(x0,y0,x1,y1,rx,ry,rw,rh)=>{const g=x.createLinearGradient(x0,y0,x1,y1);g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(rx,ry,rw,rh)};
+ const fx=mode==='side'?.16:.1,ft=mode==='side'?.16:.42,fb=mode==='side'?.16:0;
+ fade(0,0,w*fx,0,0,0,w*fx,h);fade(w,0,w*(1-fx),0,w*(1-fx),0,w*fx,h);fade(0,0,0,h*ft,0,0,w,h*ft);if(fb)fade(0,h,0,h*(1-fb),0,h*(1-fb),w,h*fb);return c}
 function drawD(H){
- ctx.fillStyle='#e9e8e4';ctx.fillRect(0,0,W,H);ctx.strokeStyle='#5b5b5b';ctx.lineWidth=3;ctx.strokeRect(36,36,W-72,H-72);
- const topH=H*.34,top=80;let tx=W/2,tw=W-200;
- if(img){contain(img,70,top,W*.4,topH-top);tx=W*.71;tw=W*.5}
- const t=fit(v('title'),900,'Cairo',tw,(topH-top)*.62,104,44,1.15);
- const iF=v('intro')?fit(v('intro'),800,'Cairo',tw,(topH-top)*.3,64,30,1.2):{size:0,lines:[]};
- const bh=t.lines.length*t.size*1.15+iF.lines.length*iF.size*1.2;let y=top+(topH-top-bh)/2-t.size*.2;
- y=rich(t.lines,F(900,t.size,'Cairo'),t.size,tx,y,1.15,'#1f6b4a','#1f6b4a','');
- if(iF.lines.length)rich(iF.lines,F(800,iF.size,'Cairo'),iF.size,tx,y,1.2,'#2b2b2b','#2b2b2b','');
+ const ib=img?imgBg():null,bg=ib&&ib.a>200&&ib.l>.55?ib.css:'#e9e8e4';
+ ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);ctx.strokeStyle='rgba(60,60,60,.7)';ctx.lineWidth=3;ctx.strokeRect(36,36,W-72,H-72);
+ const pos=v('imgpos')||'bottom',side=img&&pos==='side',scene=img&&pos==='bottom',sceneH=scene?Math.round(H*.28):0;
+ if(scene)ctx.drawImage(feather(W-80,sceneH,'bottom'),40,H-40-sceneH);
+ const top=78,headH=H*(scene?.25:.31);let tx=W/2,tw=W-200;
+ if(side){const bw=W*.42,bh=headH-top+30;ctx.drawImage(feather(Math.round(bw),Math.round(bh),'side'),56,top-10);tx=W*.72;tw=W*.48}
+ if(scene){tx=W*.585;tw=W*.66;sign(W*.135,top+90,'#1f6b4a','rgba(31,107,74,.8)','#1d5c40')}
+ const avail=headH-top,hasI=!!v('intro');
+ const t=fit(v('title'),900,'Cairo',tw,avail*(hasI?.64:.92),100,40,1.32);
+ const iF=hasI?fit(v('intro'),800,'Cairo',tw,avail*.3,58,26,1.4):{size:0,lines:[]};
+ const gap=hasI?t.size*.18:0,bh=t.lines.length*t.size*1.32+gap+iF.lines.length*iF.size*1.4;let y=top+(avail-bh)/2-t.size*.22;
+ y=rich(t.lines,F(900,t.size,'Cairo'),t.size,tx,y,1.32,'#1f6b4a','#1f6b4a','')+gap;
+ if(iF.lines.length)rich(iF.lines,F(800,iF.size,'Cairo'),iF.size,tx,y,1.4,'#2b2b2b','#2b2b2b','');
  const rows=v('rows').split('\n').map(r=>r.split('|').map(c=>c.trim()).filter(Boolean)).filter(r=>r.length);
- y=topH+24;
- if(rows.length){const gap=12,rh=Math.min(112,(H*.32)/rows.length-gap),tX=64,tW=W-128;
+ y=headH+26;
+ if(rows.length){const g=12,rh=Math.min(108,(H*(scene?.25:.3))/rows.length-g),tX=64,tW=W-128;
   rows.forEach(r=>{const n=r.length,ws=n===1?[1]:[.24,...Array(n-1).fill(.76/(n-1))];let x=tX+tW;
-   r.forEach((c,i)=>{const w=tW*ws[i]-(i<n-1?gap:0);ctx.fillStyle=i===0?'#1d5c40':'#2e7d57';rr(x-w,y,w,rh,10);ctx.fill();
-    let fs=Math.round(rh*.46);ctx.font=F(800,fs,'Cairo');while(ctx.measureText(c).width>w-28&&fs>18){fs-=2;ctx.font=F(800,fs,'Cairo')}
-    ctx.fillStyle='#fff';ctx.textAlign='center';ctx.direction='rtl';ctx.textBaseline='middle';ctx.fillText(c,x-w/2,y+rh/2+2);ctx.textBaseline='alphabetic';x-=w+gap});
-   y+=rh+gap});y+=20}
- const bottom=H-180-(v('src')?56:0);const m=fit(v('main'),700,'Amiri',W-170,bottom-y,58,28,1.6);const mh=m.lines.length*m.size*1.6;
- const end=rich(m.lines,F(700,m.size,'Amiri'),m.size,W/2,y+Math.max(0,(bottom-y-mh)/2),1.6,'#222','#1f6b4a','');
- if(v('src')){ctx.font=F(700,30,'Amiri');const sw=ctx.measureText(v('src')).width+60;ctx.fillStyle='#d9d7d0';rr(W/2-sw/2,end+14,sw,50,10);ctx.fill();center(v('src'),F(700,30,'Amiri'),'#444',W/2,end+48)}
- sign(W/2,H-90,'#1f6b4a','rgba(31,107,74,.75)','#1d5c40')}
+   r.forEach((c,i)=>{const w=tW*ws[i]-(i<n-1?g:0);ctx.fillStyle=i===0?'#1d5c40':'#2e7d57';rr(x-w,y,w,rh,10);ctx.fill();
+    let fs=Math.round(rh*.44);ctx.font=F(800,fs,'Cairo');while(ctx.measureText(c).width>w-28&&fs>18){fs-=2;ctx.font=F(800,fs,'Cairo')}
+    ctx.fillStyle='#fff';ctx.textAlign='center';ctx.direction='rtl';ctx.textBaseline='middle';ctx.fillText(c,x-w/2,y+rh/2+2);ctx.textBaseline='alphabetic';x-=w+g});
+   y+=rh+g});y+=18}
+ const bottom=H-(scene?sceneH*.95:170)-(v('src')?62:0);const m=fit(v('main'),700,'Amiri',W-170,bottom-y,54,26,1.62);const mh=m.lines.length*m.size*1.62;
+ const end=rich(m.lines,F(700,m.size,'Amiri'),m.size,W/2,y+Math.max(0,(bottom-y-mh)/2),1.62,'#222','#1f6b4a','');
+ if(v('src')){ctx.font=F(700,30,'Amiri');const sw=ctx.measureText(v('src')).width+60;ctx.fillStyle='rgba(0,0,0,.08)';rr(W/2-sw/2,end+12,sw,50,10);ctx.fill();center(v('src'),F(700,30,'Amiri'),'#444',W/2,end+46)}
+ if(!scene)sign(W/2,H-90,'#1f6b4a','rgba(31,107,74,.75)','#1d5c40')}
 // ---- حساب التواريخ
 const hij=d=>{const p=new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn',{day:'numeric',month:'numeric',year:'numeric'}).formatToParts(d);const g=t=>+p.find(x=>x.type===t).value;return{d:g('day'),m:g('month'),y:parseInt(p.find(x=>x.type==='year').value)}};
 const hMonth=d=>new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn',{month:'long'}).format(d);
@@ -204,7 +220,7 @@ function render(){
 let lastBlob=null,tm;
 const later=()=>{clearTimeout(tm);tm=setTimeout(render,150)};
 fields.forEach(f=>$(f).addEventListener('input',later));
-$('size').addEventListener('change',render);
+$('size').addEventListener('change',render);$('imgpos').addEventListener('change',render);
 $('pBid').addEventListener('click',()=>{let d=today();for(let i=0;i<40&&!(hij(d).d>=13&&hij(d).d<=15&&hij(addD(d,13-hij(d).d)).d===13);i++)d=addD(d,1);
  d=addD(d,13-hij(d).d);const rows=[0,1,2].map(i=>{const x=addD(d,i);return `${dayName(x)} | ${hij(x).d} ${hMonth(x)} | الموافق ${greg(x)}`}).join('\n');
  fillPreset({title:'نذكّركم بالأيام البيض',intro:'لشهر '+hMonth(d)+' '+hij(d).y+' هـ',rows,main:'قال رسول الله ﷺ:\n«صَوْمُ ثلاثةِ أيامٍ مِن كلِّ شهرٍ صَوْمُ الدَّهرِ كلِّه»',src:'متفق عليه',hl:'الدهر'})});
