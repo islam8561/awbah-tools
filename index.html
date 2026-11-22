@@ -215,7 +215,7 @@ function drawD(H){
  if(!scene)sign(W/2,H-90,'#1f6b4a','rgba(31,107,74,.75)','#1d5c40')}
 // ---- حساب التواريخ
 const hij=d=>{const p=new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn',{day:'numeric',month:'numeric',year:'numeric'}).formatToParts(d);const g=t=>+p.find(x=>x.type===t).value;return{d:g('day'),m:g('month'),y:parseInt(p.find(x=>x.type==='year').value)}};
-const hMonth=d=>new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn',{month:'long'}).format(d);
+const hMonth=d=>new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn',{month:'long'}).format(d).replace('جمادى الآخرة','جمادى الثانية').replace('ربيع الآخر','ربيع الثاني');
 const dayName=d=>new Intl.DateTimeFormat('ar-EG',{weekday:'long'}).format(d).replace('الاثنين','الإثنين');
 const greg=d=>new Intl.DateTimeFormat('ar-EG-u-nu-latn',{day:'numeric',month:'long'}).format(d);
 const addD=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
